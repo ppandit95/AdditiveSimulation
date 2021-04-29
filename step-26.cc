@@ -40,6 +40,7 @@
 #include <deal.II/dofs/dof_tools.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/fe_nothing.h>
 #include <deal.II/numerics/data_out.h>
 #include <deal.II/numerics/vector_tools.h>
 #include <deal.II/numerics/error_estimator.h>
@@ -77,8 +78,9 @@ namespace Step26
                       const unsigned int max_grid_level);
 
     Triangulation<dim>   triangulation;
-    FE_Q<dim>            fe;
-    DoFHandler<dim>      dof_handler;
+    hp::FECollection<dim>fe_collection;
+    hp::DoFHandler<dim>  dof_handler;
+    hp::QCollection<dim> quadrature_collection;
 
     ConstraintMatrix     constraints;
 
@@ -179,7 +181,6 @@ namespace Step26
   template <int dim>
   HeatEquation<dim>::HeatEquation ()
     :
-    fe(1),
     dof_handler(triangulation),
     time (0.0),
     time_step(1. / 500),
@@ -188,7 +189,13 @@ namespace Step26
     edge_length(1.0),
 	layerThickness(0.05),
 	number_layer(20)
-  {}
+  {
+	  fe_collection.push_back(FE_Q<dim>(1));
+	  fe_collection.push_back(FE_Nothing<dim>());
+
+	  quadrature_collection.push_back(QGauss<dim>(2));
+	  quadrature_collection.push_back(FE_Nothing<dim>());
+  }
 
   template<int dim>
   	  void HeatEquation<dim>::create_coarse_grid(){
@@ -212,43 +219,35 @@ namespace Step26
   template <int dim>
   void HeatEquation<dim>::setup_system()
   {
-    dof_handler.distribute_dofs(fe);
+	//DOF distribution using proper finite element
+	dof_handler.distribute_dofs(fe_collection);
 
-    std::cout << std::endl
-              << "==========================================="
-              << std::endl
-              << "Number of active cells: " << triangulation.n_active_cells()
-              << std::endl
-              << "Number of degrees of freedom: " << dof_handler.n_dofs()
-              << std::endl
-              << std::endl;
+	//Creation of the constraints to handle hanging nodes
+	constraints.clear();
+	DoFTools::make_hanging_node_constraints(dof_handler, constraints);
+	constraints.close();
 
-    constraints.clear ();
-    DoFTools::make_hanging_node_constraints (dof_handler,
-                                             constraints);
-    constraints.close();
+	//Creation of the sparsity pattern for the matrices
+	DynamicSparsityPattern dsp(dof_handler.n_dofs());
+	DoFTools::make_sparsity_pattern(dof_handler, dsp, constraints, true);
+	sparsity_pattern.copy_from(dsp);
 
-    DynamicSparsityPattern dsp(dof_handler.n_dofs());
-    DoFTools::make_sparsity_pattern(dof_handler,
-                                    dsp,
-                                    constraints,
-                                    /*keep_constrained_dofs = */ true);
-    sparsity_pattern.copy_from(dsp);
+	mass_matrix.reinit(sparsity_pattern);
+	laplace_matrix.reinit(sparsity_pattern);
+	system_matrix.reinit(sparsity_pattern);
 
-    mass_matrix.reinit(sparsity_pattern);
-    laplace_matrix.reinit(sparsity_pattern);
-    system_matrix.reinit(sparsity_pattern);
+	//Mass Matrix Computation
+	MatrixCreator::create_mass_matrix(dof_handler,quadrature_collection,mass_matrix,(const Function<dim> *)0,constraints);
 
-    MatrixCreator::create_mass_matrix(dof_handler,
-                                      QGauss<dim>(fe.degree+1),
-                                      mass_matrix);
-    MatrixCreator::create_laplace_matrix(dof_handler,
-                                         QGauss<dim>(fe.degree+1),
-                                         laplace_matrix);
+	//Stiffness Matrix Computation
+	MatrixCreator::create_laplace_matrix(dof_handler, quadrature_collection, laplace_matrix, (const Function<dim> *)0,constraints);
 
-    solution.reinit(dof_handler.n_dofs());
-    old_solution.reinit(dof_handler.n_dofs());
-    system_rhs.reinit(dof_handler.n_dofs());
+	//Memory Allocation for the RHS vector
+	system_rhs.reinit(dof_handler.n_dofs());
+
+	//Memory Allocation for solution vector
+	solution.reinit(dof_handler.n_dofs());
+	old_solution.reinit(dof_handler.n_dofs());
   }
 
 
