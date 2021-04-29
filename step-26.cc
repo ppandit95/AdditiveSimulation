@@ -22,6 +22,7 @@
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/function.h>
 #include <deal.II/base/logstream.h>
+#include <deal.II/base/function_time.h>
 #include <deal.II/lac/vector.h>
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/dynamic_sparsity_pattern.h>
@@ -102,13 +103,15 @@ namespace Step26
     const double 		 edge_length;
     const double		 layerThickness;
     const double 		 number_layer;
+    const double 		 heat_capacity;
+    const double 		 heat_conductivity;
   };
 
 
 
 
   template <int dim>
-  class RightHandSide : public Function<dim>
+  class RightHandSide : public Function<dim>,public FunctionTime<double>
   {
   public:
     RightHandSide ()
@@ -116,7 +119,7 @@ namespace Step26
       Function<dim>(),
       period (0.2)
     {}
-
+    void set_time(const double new_time);
     virtual double value (const Point<dim> &p,
                           const unsigned int component = 0) const;
 
@@ -154,7 +157,10 @@ namespace Step26
     else
       return 0;
   }
-
+  template<int dim>
+  void RightHandSide<dim>::set_time(const double new_time){
+	  time = new_time;
+  }
 
 
   template <int dim>
@@ -188,7 +194,9 @@ namespace Step26
     theta(0.5),
     edge_length(1.0),
 	layerThickness(0.05),
-	number_layer(20)
+	number_layer(20),
+	heat_capacity(1.0),
+  	heat_conductivity(1.0)
   {
 	  fe_collection.push_back(FE_Q<dim>(1));
 	  fe_collection.push_back(FE_Nothing<dim>());
@@ -250,6 +258,35 @@ namespace Step26
 	old_solution.reinit(dof_handler.n_dofs());
   }
 
+  template<int dim>
+  	  void HeatEquation<dim>::assemble_system()
+  {
+	  Vector<double> tmp;
+	  Vector<double> tmp2;
+	  Vector<double> forcing_terms;
+
+	  tmp.reinit(solution.size());
+	  tmp2.reinit(solution.size());
+	  forcing_terms.reinit(solution.size());
+
+	  tmp2.add(heat_capacity,old_solution);
+	  mass_matrix.vmult(system_rhs,tmp2); //rhs = c*M*T^(n-1)
+
+	  laplace_matrix.vmult(tmp, old_solution);//tmp=K*T^(n-1)
+	  system_rhs.add(-(1-theta)*time_step*heat_conductivity,tmp);//rhs = (cM - (1-theta)*tau*k)*K*T^(n-1)
+
+	  //Computation of the forcing terms(=laser heat input)
+	  RightHandSide<dim> rhs_function;
+
+	  rhs_function.set_time(time);// t=tn
+	  VectorTools::create_right_hand_side(dof_handler,quadrature_collection,rhs_function,tmp); // tmp = F^n
+
+	  forcing_terms = tmp;// Forcing terms = F^n
+	  forcing_terms *= time_step * theta;//forcing_terms = tau*theta*F^n
+
+	  rhs_function.set_time(time-time_step);//t = t(n-1)
+
+  }
 
   template <int dim>
   void HeatEquation<dim>::solve_time_step()
