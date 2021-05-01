@@ -67,6 +67,7 @@ namespace Step26
 
   private:
     void create_coarse_grid();
+    void part_height_measure();
     bool cell_is_in_metal_domain();
     bool cell_is_in_void_domain();
     void set_active_fe_indice();
@@ -110,6 +111,7 @@ namespace Step26
     const double 		 heat_conductivity;
     const double 		 convection_coeff;
     const double		 Tamb;
+    double		 		 part_height;
   };
 
 
@@ -203,7 +205,8 @@ namespace Step26
 	heat_capacity(1.0),
   	heat_conductivity(1.0),
 	convection_coeff(1.0),
-	Tamb(293.15)
+	Tamb(293.15),
+	part_height(0.0)
   {
 	  fe_collection.push_back(FE_Q<dim>(1));
 	  fe_collection.push_back(FE_Nothing<dim>());
@@ -420,6 +423,29 @@ namespace Step26
 			<< std::endl;
   }
 
+
+  template<int dim>
+  void HeatEquation<dim>::part_height_measure()
+  {
+	  double max_height = part_height; //Maximal Height of vertice belonging to the metal domain in the previous function call
+
+	  //Iteration over all the cells and storage of the maximal height of a vertex belonging to the metal domain
+	  typename hp::DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active(),endc = dof_handler.end();
+	  for(;cell!=endc;++cell)
+	  {
+		  if(cell->active_fe_index() == 0)
+		  {
+			  double height_temp = 0;
+			  for(unsigned int v=0;v<GeometryInfo<dim>::vertices_per_cell;++v)
+			  {
+				  height_temp = cell->vertex(v)[dim-1];
+				  if(height_temp>max_height)
+					  max_height = height_temp;
+			  }
+		  }
+	  }
+	  part_height = max_height;
+  }
 
 
   template <int dim>
