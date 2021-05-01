@@ -30,6 +30,7 @@
 #include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/constraint_matrix.h>
+#include <deal.II/lac/sparse_direct.h>
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/grid_refinement.h>
@@ -82,6 +83,7 @@ namespace Step26
     hp::FECollection<dim>fe_collection;
     hp::DoFHandler<dim>  dof_handler;
     hp::QCollection<dim> quadrature_collection;
+    hp::QCollection<dim-1> face_quadrature_collection;
 
     ConstraintMatrix     constraints;
 
@@ -89,6 +91,7 @@ namespace Step26
     SparseMatrix<double> mass_matrix;
     SparseMatrix<double> laplace_matrix;
     SparseMatrix<double> system_matrix;
+    SparseMatrix<double> boundary_matrix;
 
     Vector<double>       solution;
     Vector<double>       old_solution;
@@ -105,6 +108,8 @@ namespace Step26
     const double 		 number_layer;
     const double 		 heat_capacity;
     const double 		 heat_conductivity;
+    const double 		 convection_coeff;
+    const double		 Tamb;
   };
 
 
@@ -196,13 +201,18 @@ namespace Step26
 	layerThickness(0.05),
 	number_layer(20),
 	heat_capacity(1.0),
-  	heat_conductivity(1.0)
+  	heat_conductivity(1.0),
+	convection_coeff(1.0),
+	Tamb(293.15)
   {
 	  fe_collection.push_back(FE_Q<dim>(1));
 	  fe_collection.push_back(FE_Nothing<dim>());
 
 	  quadrature_collection.push_back(QGauss<dim>(2));
-	  quadrature_collection.push_back(FE_Nothing<dim>());
+	  quadrature_collection.push_back(QGauss<dim>(2));
+
+	  face_quadrature_collection.push_back(QGauss<dim-1>(2));
+	  face_quadrature_collection.push_back(QGauss<dim-1>(2));
   }
 
   template<int dim>
@@ -285,13 +295,91 @@ namespace Step26
 	  forcing_terms *= time_step * theta;//forcing_terms = tau*theta*F^n
 
 	  rhs_function.set_time(time-time_step);//t = t(n-1)
+	  VectorTools::create_right_hand_side(dof_handler,quadrature_collection, rhs_function, tmp);//tmp = F^(n-1)
+	  forcing_terms.add(time_step*(1-theta),tmp);// forcing_terms = tau*theta*F^n + tau*(1-theta)*F^(n-1)
 
+	  system_rhs += forcing_terms; //rhs = tau*theta*F^n+tau*(1-theta)*F^(n-1)+ (c*M-(1-theta)*tau*k*K)*T^(n-1)
+
+	  system_matrix.add(heat_capacity,mass_matrix); //A = cM
+	  system_matrix.add(theta*time_step*heat_conductivity,laplace_matrix);// A = c*M+ theta*K*tau*K
+
+	  //Applying Robin BCs
+
+	  const unsigned int n_face_q_points = face_quadrature_collection[0].size();// quadrature points on faces
+	  const unsigned int n_q_points = quadrature_collection[0].size();//quadrature points on elements
+
+	  //Finite Element evaluated in quadrature points of a cell
+	  hp::FEValues<dim> hp_fe_values(fe_collection,quadrature_collection,update_values | update_quadrature_points | update_JxW_values);
+
+	  // Finite element evaluated in quadrature points of the faces of a cell
+	  hp::FEFaceValues<dim> hp_fe_face_values(fe_collection,face_quadrature_collection,update_values | update_quadrature_points | update_JxW_values);
+
+	  //Iteration over all the cells
+	  typename hp::DoFHandler<dim>::active_cell_iterator cell=dof_handler.begin_active(),endc = dof_handler.end();
+
+	  for(;cell!=endc;++cell)
+	  {
+		  const unsigned int dofs_per_cell = cell->get_fe().dofs_per_cell;
+		  FullMatrix<double>   cell_matrix;
+		  Vector<double>	cell_rhs;
+		  std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
+
+		  if(dofs_per_cell!=0) //Skip the cells which are in the void domain
+		  {
+			  cell_matrix.reinit(dofs_per_cell,dofs_per_cell);
+			  cell_matrix = 0;
+
+			  cell_rhs.reinit(dofs_per_cell);
+			  cell_rhs = 0;
+
+			  for(unsigned int face_number=0;face_number<GeometryInfo<dim>::faces_per_cell;++face_number)
+			  {
+				  //Tests to select the cell faces which belong to the Robin Boundary
+				  if(cell->face(face_number)->at_boundary() && (cell->face(face_number)->boundary_id()==0))
+				  {
+					  //Term to be added in the RHS
+					  hp_fe_face_values.reinit(cell,face_number);
+					  for(unsigned int q_point = 0;q_point<n_face_q_points;++q_point)
+					  {
+						  //Computation and storage of the shape functions on boundary face integration points
+						  const FEFaceValues<dim> &fe_face_values = hp_fe_face_values.get_present_fe_values();
+						  for(unsigned int i=0;i<dofs_per_cell;++i)
+							  cell_rhs(i) += (fe_face_values.shape_value(i,q_point)*fe_face_values.JxW(q_point));
+
+						  //Computation and addition of the terms in the RHS
+						  cell->get_dof_indices(local_dof_indices);
+						  for(unsigned int i=0;i<dofs_per_cell;++i)
+							  system_rhs(local_dof_indices[i]) -= time_step*convection_coeff*cell_rhs(i)*((1-theta)*old_solution(i)-Tamb);
+					  }
+
+					  //Term to be added in the system matrix
+					  hp_fe_values.reinit(cell);
+					  const FEValues<dim> &fe_values = hp_fe_values.get_present_fe_values();
+
+					  //Computation and storage of the value of the shape functions on boundary cell integration points
+					  for(unsigned int q_point = 0;q_point < n_q_points; ++q_point)
+						  for(unsigned int i=0;i<dofs_per_cell;++i)
+							  for(unsigned int j=0;j<dofs_per_cell;++j)
+								  cell_matrix(i,j) += (fe_values.shape_value(i,q_point)*fe_values.shape_value(j,q_point)*fe_values.JxW(q_point));
+
+					  cell->get_dof_indices(local_dof_indices);
+					  for(unsigned int i=0;i<dofs_per_cell;++i)
+						  for(unsigned int j=0;j<dofs_per_cell;++j)
+							  boundary_matrix.add(local_dof_indices[i],local_dof_indices[j],cell_matrix(i,j));
+				  }
+			  }
+		  }
+
+		  //Computation and addition of the terms in the system matrix
+		  system_matrix.add(theta*time_step*convection_coeff,boundary_matrix);
+	  }
+	  constraints.condense(system_matrix,system_rhs);
   }
 
   template <int dim>
   void HeatEquation<dim>::solve_time_step()
   {
-    SolverControl solver_control(1000, 1e-8 * system_rhs.l2_norm());
+    /*SolverControl solver_control(1000, 1e-8 * system_rhs.l2_norm());
     SolverCG<> cg(solver_control);
 
     PreconditionSSOR<> preconditioner;
@@ -303,7 +391,33 @@ namespace Step26
     constraints.distribute(solution);
 
     std::cout << "     " << solver_control.last_step()
-              << " CG iterations." << std::endl;
+              << " CG iterations." << std::endl;*/
+	SparseDirectUMFPACK		A_direct;
+
+	//Initialization and LU factorization of A_direct
+	A_direct.initialize(system_matrix);
+
+	//Direct Resolution
+	A_direct.vmult(solution,system_rhs);
+
+	//Application of hanging nodes constraints
+	constraints.clear();
+	DoFTools::make_hanging_node_constraints(dof_handler, constraints);
+	constraints.close();
+	constraints.distribute(solution);
+
+	std::cout << "***Time step " << timestep_number << " at t=" << time
+	<< std::endl;
+	std::cout << std::endl
+			<< "==========================================="
+			<< std::endl
+			<< "Number of active cells: " <<
+			triangulation.n_active_cells()
+			<< std::endl
+			<< "Number of degrees of freedom: " <<
+			dof_handler.n_dofs()
+			<< std::endl
+			<< std::endl;
   }
 
 
