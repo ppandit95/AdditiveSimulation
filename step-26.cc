@@ -48,6 +48,7 @@
 #include <deal.II/numerics/error_estimator.h>
 #include <deal.II/numerics/solution_transfer.h>
 #include <deal.II/numerics/matrix_tools.h>
+#include"Point_Comparison_Operator.hpp"
 
 #include <fstream>
 #include <iostream>
@@ -68,12 +69,12 @@ namespace Step26
   private:
     void create_coarse_grid();
     void part_height_measure();
-    bool cell_is_in_metal_domain();
-    bool cell_is_in_void_domain();
+    bool cell_is_in_metal_domain(const typename hp::DoFHandler<dim>::cell_iterator &cell);
+    bool cell_is_in_void_domain(const typename hp::DoFHandler<dim>::cell_iterator &cell);
     void set_active_fe_indice();
     void setup_system();
-    void store_old_vector();//Need to define a map to store old solution
-    void transfer_old_vector();//Uses the map filled by store_old_vector()
+    void store_old_vectors();//Need to define a map to store old solution
+    void transfer_old_vectors();//Uses the map filled by store_old_vector()
     void assemble_system();
     void solve_time_step();
     void output_results() const;
@@ -112,6 +113,7 @@ namespace Step26
     const double 		 convection_coeff;
     const double		 Tamb;
     double		 		 part_height;
+    std::map<Point<dim>,double> map_old_solution;
   };
 
 
@@ -331,7 +333,6 @@ namespace Step26
 		  {
 			  cell_matrix.reinit(dofs_per_cell,dofs_per_cell);
 			  cell_matrix = 0;
-
 			  cell_rhs.reinit(dofs_per_cell);
 			  cell_rhs = 0;
 
@@ -423,6 +424,56 @@ namespace Step26
 			<< std::endl;
   }
 
+  template<int dim>
+  bool HeatEquation<dim>::cell_is_in_metal_domain(const typename hp::DoFHandler<dim>::cell_iterator
+		  &cell)
+  {
+	  bool in_metal=false;
+	  unsigned int n = 0;
+	  for (unsigned int v=0;v<GeometryInfo<dim>::vertices_per_cell;++v)
+	  {
+		  double limit = (1+floor(5*time))*layerThickness;
+		  in_metal = (cell->vertex(n)[dim-1]) < std::max(part_height,limit);
+		  if(in_metal==false)
+			  n++;
+	  }
+	  return in_metal;
+  }
+
+  template<int dim>
+  bool HeatEquation<dim>::cell_is_in_void_domain(const typename hp::DoFHandler<dim>::cell_iterator
+		  &cell)
+  {
+	  bool in_void = false;
+	  unsigned int n = 0;
+	  for(unsigned int v=0;v<GeometryInfo<dim>::vertices_per_cell;++v)
+	  {
+		  double limit = (1+floor(5*time))*layerThickness;
+		  in_void = cell->vertex(n)[dim-1] > std::max(part_height,limit);
+		  if(in_void == false)
+			  n++;
+	  }
+	  return in_void;
+  }
+
+  template<int dim>
+  void HeatEquation<dim>::set_active_fe_indice()
+  {
+
+	  //Iteration over all the cells of the mesh
+	  for(typename hp::DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active();cell != dof_handler.end();++cell)
+	  {
+		  //Lagrange Element if the cell is in metal domain
+		  if(cell_is_in_metal_domain(cell))
+			  cell->set_active_fe_index(0);
+		  //Zero element if the cell is in void domain
+		  else if (cell_is_in_void_domain(cell))
+			  cell->set_active_fe_index(1);
+		  //Throw an error if none of the above two cases is encountered
+		  else
+			  Assert(false,ExcNotImplemented());
+	  }
+  }
 
   template<int dim>
   void HeatEquation<dim>::part_height_measure()
@@ -465,45 +516,82 @@ namespace Step26
     data_out.write_vtk(output);
   }
 
+  template<int dim>
+  void HeatEquation<dim>::store_old_vectors()
+  {
+	  map_old_solution.clear();
+	  const MappingQ1<dim,dim> mapping;
+
+	  typename hp::DoFHandler<dim>::active_cell_iterator cell1 = dof_handler.begin_active(),endc1 = dof_handler.end();
+	  for(;cell1!=endc1;cell1++)
+	  {
+		  //Temporary variable to get the number of dof for the currently visited cell
+		  const unsigned int dofs_per_cell = cell1->get_fe().dofs_per_cell;
+
+		  std::vector<Point<dim>> support_points(dofs_per_cell);
+
+		  if(dofs_per_cell != 0)//To skip the cell with FE = FE_Nothing as there is no support point there
+		  {
+			  //Get the coordinates of the support points on the unit cell
+			  support_points = fe_collection[0].get_unit_support_points();
+
+			  //Get the coordinates of the support points on the real cell
+			  for(unsigned int i=0;i<dofs_per_cell;i++)
+			  {
+				  support_points[i] = mapping.transform_unit_to_real_cell(cell1,support_points[i]);
+				  map_old_solution[support_points[i]] = VectorTools::point_value(dof_handler,old_solution,support_points[i]);
+			  }
+		  }
+	  }
+  }
 
   template <int dim>
   void HeatEquation<dim>::refine_mesh (const unsigned int min_grid_level,
                                        const unsigned int max_grid_level)
   {
-    Vector<float> estimated_error_per_cell (triangulation.n_active_cells());
+	//Error estimation to set refine flags
+	Vector<float> estimated_error_per_cell(triangulation.n_active_cells());
 
-    KellyErrorEstimator<dim>::estimate (dof_handler,
-                                        QGauss<dim-1>(fe.degree+1),
-                                        typename FunctionMap<dim>::type(),
-                                        solution,
-                                        estimated_error_per_cell);
+	//Computation of the vector of the KellyErrorEstimator on each cell
 
-    GridRefinement::refine_and_coarsen_fixed_fraction (triangulation,
-                                                       estimated_error_per_cell,
-                                                       0.6, 0.4);
+	KellyErrorEstimator<dim>::estimate(dof_handler, face_quadrature_collection, typename FunctionMap<dim>::type(), solution, estimated_error_per_cell);
 
-    if (triangulation.n_levels() > max_grid_level)
-      for (typename Triangulation<dim>::active_cell_iterator
-           cell = triangulation.begin_active(max_grid_level);
-           cell != triangulation.end(); ++cell)
-        cell->clear_refine_flag ();
-    for (typename Triangulation<dim>::active_cell_iterator
-         cell = triangulation.begin_active(min_grid_level);
-         cell != triangulation.end_active(min_grid_level); ++cell)
-      cell->clear_coarsen_flag ();
+	GridRefinement::refine_and_coarsen_fixed_fraction(triangulation, estimated_error_per_cell, 0.6, 0.4);
 
-    SolutionTransfer<dim> solution_trans(dof_handler);
+	//Clear the refine flag of the cell which are already at the maximal level of refinement
+	if(triangulation.n_levels()>max_grid_level)
+		for(typename Triangulation<dim>::active_cell_iterator cell = triangulation.begin_active(max_grid_level);cell != triangulation.end(); ++cell)
+			cell->clear_refine_flag();
 
-    Vector<double> previous_solution;
-    previous_solution = solution;
-    triangulation.prepare_coarsening_and_refinement();
-    solution_trans.prepare_for_coarsening_and_refinement(previous_solution);
+	// Considering the bug in deal.II library all coarsen flags are removed
+	// Otherwise only the coarsening flag of the cells which are at the minimal level of refinement would be cleared
 
-    triangulation.execute_coarsening_and_refinement ();
-    setup_system ();
+	for (typename Triangulation<dim>::active_cell_iterator
+	cell = triangulation.begin_active();
+	cell != triangulation.end(); ++cell)
+	cell->clear_coarsen_flag ();
 
-    solution_trans.interpolate(previous_solution, solution);
-    constraints.distribute (solution);
+	//Computation of the new triangulation and DoFHandler
+	triangulation.prepare_coarsening_and_refinement();
+	SolutionTransfer<dim,Vector<double>,hp::DoFHandler<dim>> solution_trans(dof_handler);
+	solution_trans.prepare_for_coarsening_and_refinement(solution);
+	triangulation.execute_coarsening_and_refinement();
+	dof_handler.distribute_dofs(fe_collection);
+
+	//Solution interpolation on the new DoF Handler
+	Vector<double> new_solution(dof_handler.n_dofs());
+	solution_trans.interpolate(solution, new_solution);
+	solution.reinit(dof_handler.n_dofs());
+	solution = new_solution;
+
+	old_solution = solution;
+
+	constraints.clear();
+	DoFTools::make_hanging_node_constraints(dof_handler, constraints);
+	constraints.close();
+
+	//Computation of the hanging node constraints
+	constraints.distribute(solution);
   }
 
 
