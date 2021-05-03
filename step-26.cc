@@ -594,7 +594,86 @@ namespace Step26
 	constraints.distribute(solution);
   }
 
+  template<int dim>
+  void HeatEquation<dim>::transfer_old_vectors()
+  {
+	  //Creation of a solution of the same size of the number of dof of the new FE space
+	  Vector<double> long_solution;
+	  long_solution.reinit(dof_handler.n_dofs(),false);
 
+	  const MappingQ1<dim,dim> mapping;
+
+	  std::vector<types::global_dof_index> local_dof_indices;
+	  //Iteration over all the cells of the updated dof_handler to fill the solution vector from the one from of the former one
+	  unsigned int k=0;
+	  typename hp::DoFHandler<dim>::active_cell_iterator cell=dof_handler.begin_active(),endc = dof_handler.end();
+	  for(;cell!=endc;cell++)
+	  {
+		  //Vector of the points already stored
+		  std::vector<Point<dim>> points_stored;
+
+		  //Number of dofof the currently visited cell
+		  const unsigned int dofs_per_cell = cell -> get_fe().dofs_per_cell;
+
+		  //Vector of the support points of one cell
+		  std::vector<Point<dim>> support_points(dofs_per_cell);
+
+		  if(dofs_per_cell!=0)// To skip the cell with FE = FE_Nothing because they have not any support point
+		  {
+			  // Get the coordinates of the support points on the unit cell
+			  support_points = fe_collection[0].get_unit_support_points();
+
+			  // Vector of the degree of freedom indices of one cell
+			  local_dof_indices.resize(dofs_per_cell);
+			  cell->get_dof_indices(local_dof_indices);
+
+			  //Get the coordinates of the support points on the real cell
+			  for (int i=0;i<dofs_per_cell;i++)
+			  {
+				  support_points[i] =
+				  mapping.transform_unit_to_real_cell(cell,
+				  support_points[i]);
+				  typename std::map< Point<dim>, double>::iterator
+				  iter_old = map_old_solution.begin();
+				  double solution_temp = 0;
+
+				  // Variable to check if a point has already been stored
+				  unsigned int is_point_stored = 0;
+
+				  // Iteration in the old solution map
+				  for(;iter_old!= map_old_solution.end();iter_old++)
+				  {
+					  // Test if the point visited corresponds to a point in the "old" dof_handler
+					  if(support_points[i] == iter_old -> first )
+						  //store the Point currently visited
+						  points_stored.push_back(support_points[i]);
+					  typename std::vector<Point<dim>>::iterator it_points = points_stored.begin();
+
+					  //Test if the point has not been visited and stored yet
+					  for(;it_points != points_stored.end();it_points++)
+					  {
+						  if(*it_points == iter_old->first)
+							  is_point_stored++; //=1 if it is the first time the point is visited, >1 if it is not
+					  }
+				  }
+				  //In case it has not been visited yet --> we store the solution
+				  if(is_point_stored == 1)
+				  {
+					  solution_temp = map_old_solution.find(support_points[i])-> second;
+					  //Write the solution at the right place inside the vector
+					  long_solution[local_dof_indices[i]] = solution_temp;
+					  k++;
+				  }
+			  }
+		  }
+	  }
+	  solution.reinit(dof_handler.n_dofs());
+	  old_solution = long_solution;
+	  constraints.clear();
+	  DoFTools::make_hanging_node_constraints(dof_handler, constraints);
+	  constraints.close();
+	  constraints.distribute(old_solution);
+  }
 
   template <int dim>
   void HeatEquation<dim>::run()
