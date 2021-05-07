@@ -437,6 +437,13 @@
 						<stopOnError>true</stopOnError>
 						<useDefaultCommand>false</useDefaultCommand>
 					</target>
+					<target name=": info" path="" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
+						<buildCommand>/usr/bin/make</buildCommand>
+						<buildArguments>-j12</buildArguments>
+						<buildTarget>info</buildTarget>
+						<stopOnError>true</stopOnError>
+						<useDefaultCommand>false</useDefaultCommand>
+					</target>
 					<target name=": strip_comments" path="" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
 						<buildCommand>/usr/bin/make</buildCommand>
 						<buildArguments>-j12</buildArguments>
@@ -451,38 +458,38 @@
 						<stopOnError>true</stopOnError>
 						<useDefaultCommand>false</useDefaultCommand>
 					</target>
-					<target name=": info" path="" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
+					<target name="[exe] AdditiveSimulation" path="" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
 						<buildCommand>/usr/bin/make</buildCommand>
 						<buildArguments>-j12</buildArguments>
-						<buildTarget>info</buildTarget>
+						<buildTarget>AdditiveSimulation</buildTarget>
 						<stopOnError>true</stopOnError>
 						<useDefaultCommand>false</useDefaultCommand>
 					</target>
-					<target name="[exe] step-26" path="" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
+					<target name="[exe] AdditiveSimulation/fast" path="" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
 						<buildCommand>/usr/bin/make</buildCommand>
 						<buildArguments>-j12</buildArguments>
-						<buildTarget>step-26</buildTarget>
+						<buildTarget>AdditiveSimulation/fast</buildTarget>
 						<stopOnError>true</stopOnError>
 						<useDefaultCommand>false</useDefaultCommand>
 					</target>
-					<target name="[exe] step-26/fast" path="" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
-						<buildCommand>/usr/bin/make</buildCommand>
-						<buildArguments>-j12</buildArguments>
-						<buildTarget>step-26/fast</buildTarget>
-						<stopOnError>true</stopOnError>
-						<useDefaultCommand>false</useDefaultCommand>
-					</target>
-					<target name="Build" path="[Targets]/[exe] step-26" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
+					<target name="Build" path="[Targets]/[exe] AdditiveSimulation" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
 						<buildCommand>/usr/bin/make</buildCommand>
 						<buildArguments>-C "/home/pushkar/AdditiveSimulation" -j12</buildArguments>
-						<buildTarget>step-26</buildTarget>
+						<buildTarget>AdditiveSimulation</buildTarget>
 						<stopOnError>true</stopOnError>
 						<useDefaultCommand>false</useDefaultCommand>
 					</target>
-					<target name="Clean" path="[Targets]/[exe] step-26" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
-						<buildCommand>/snap/cmake/858/bin/cmake</buildCommand>
-						<buildArguments>-E chdir "/home/pushkar/AdditiveSimulation" "/snap/cmake/858/bin/cmake" -P "CMakeFiles/step-26.dir/cmake_clean.cmake"</buildArguments>
+					<target name="Clean" path="[Targets]/[exe] AdditiveSimulation" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
+						<buildCommand>/snap/cmake/870/bin/cmake</buildCommand>
+						<buildArguments>-E chdir "/home/pushkar/AdditiveSimulation" "/snap/cmake/870/bin/cmake" -P "CMakeFiles/AdditiveSimulation.dir/cmake_clean.cmake"</buildArguments>
 						<buildTarget></buildTarget>
+						<stopOnError>true</stopOnError>
+						<useDefaultCommand>false</useDefaultCommand>
+					</target>
+					<target name=": debug" path="" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
+						<buildCommand>/usr/bin/make</buildCommand>
+						<buildArguments>-j12</buildArguments>
+						<buildTarget>debug</buildTarget>
 						<stopOnError>true</stopOnError>
 						<useDefaultCommand>false</useDefaultCommand>
 					</target>
@@ -497,13 +504,6 @@
 						<buildCommand>/usr/bin/make</buildCommand>
 						<buildArguments>-j12</buildArguments>
 						<buildTarget>runclean</buildTarget>
-						<stopOnError>true</stopOnError>
-						<useDefaultCommand>false</useDefaultCommand>
-					</target>
-					<target name=": debug" path="" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
-						<buildCommand>/usr/bin/make</buildCommand>
-						<buildArguments>-j12</buildArguments>
-						<buildTarget>debug</buildTarget>
 						<stopOnError>true</stopOnError>
 						<useDefaultCommand>false</useDefaultCommand>
 					</target>
@@ -556,6 +556,6 @@
 		</cconfiguration>
 	</storageModule>
 	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-		<project id="step-26.null.1" name="step-26"/>
+		<project id="AdditiveSimulation.null.1" name="AdditiveSimulation"/>
 	</storageModule>
 </cproject>

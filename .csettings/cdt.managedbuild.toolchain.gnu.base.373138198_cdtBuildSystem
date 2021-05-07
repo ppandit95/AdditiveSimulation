@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?fileVersion 5.0.0?><cproject storage_type_id="org.eclipse.cdt.core.XmlProjectDescriptionStorage2">
+	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
+		<configuration buildProperties="" id="cdt.managedbuild.toolchain.gnu.base.373138198" name="Default" parent="org.eclipse.cdt.build.core.emptycfg">
+			<folderInfo id="cdt.managedbuild.toolchain.gnu.base.373138198.185328943" name="/" resourcePath="">
+				<toolChain id="cdt.managedbuild.toolchain.gnu.base.105949089" name="Linux GCC" superClass="cdt.managedbuild.toolchain.gnu.base">
+					<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.GNU_ELF" id="cdt.managedbuild.target.gnu.platform.base.2129906595" name="Debug Platform" osList="linux,hpux,aix,qnx" superClass="cdt.managedbuild.target.gnu.platform.base"/>
+					<builder id="cdt.managedbuild.target.gnu.builder.base.2021020925" managedBuildOn="false" name="Gnu Make Builder.Default" superClass="cdt.managedbuild.target.gnu.builder.base"/>
+					<tool id="cdt.managedbuild.tool.gnu.archiver.base.221344256" name="GCC Archiver" superClass="cdt.managedbuild.tool.gnu.archiver.base"/>
+					<tool id="cdt.managedbuild.tool.gnu.cpp.compiler.base.2008245679" name="GCC C++ Compiler" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.base"/>
+					<tool id="cdt.managedbuild.tool.gnu.c.compiler.base.895977429" name="GCC C Compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.base"/>
+					<tool id="cdt.managedbuild.tool.gnu.c.linker.base.1326306617" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.base"/>
+					<tool id="cdt.managedbuild.tool.gnu.cpp.linker.base.1552403380" name="GCC C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.base"/>
+					<tool id="cdt.managedbuild.tool.gnu.assembler.base.1355794285" name="GCC Assembler" superClass="cdt.managedbuild.tool.gnu.assembler.base"/>
+				</toolChain>
+			</folderInfo>
+		</configuration>
+	</storageModule>
+</cproject>
