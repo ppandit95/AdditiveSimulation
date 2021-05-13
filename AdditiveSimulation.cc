@@ -22,7 +22,6 @@
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/function.h>
 #include <deal.II/base/logstream.h>
-//#include <deal.II/base/function_time.h>
 #include <deal.II/lac/vector.h>
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/dynamic_sparsity_pattern.h>
@@ -52,6 +51,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <cmath>
 
 
 namespace AdditiveSimulation
@@ -165,10 +165,10 @@ namespace AdditiveSimulation
     double dist = point_within_layer;
     const double tol_dist = 5e-2;
 
-    if((p[0]>dist-tol_dist) && (p[0] < dist+tol_dist) && (p[1]>limit-tol_dist) && (p[1]<limit+tol_dist))
-    	return 1000;
-    else
-    	return 0;
+    double point_dist;
+    for(unsigned int i=0;i<(dim-1);i++)
+    	point_dist += sqrt(std::pow((p[i]-dist),2));
+    return 1000*std::exp(-2.0*std::pow((point_dist/tol_dist),2));
   }
 
 
