@@ -165,10 +165,8 @@ namespace AdditiveSimulation
     double dist = point_within_layer;
     const double tol_dist = 5e-2;
 
-    double point_dist;
-    for(unsigned int i=0;i<(dim-1);i++)
-    	point_dist += sqrt(std::pow((p[i]-dist),2));
-    return 1000*std::exp(-2.0*std::pow((point_dist/tol_dist),2));
+
+    return 1000*std::exp(-2.0*std::pow((p[0] - dist/tol_dist),2));
   }
 
 
@@ -189,7 +187,7 @@ namespace AdditiveSimulation
   {
     (void) component;
     Assert (component == 0, ExcIndexRange(component, 0, 1));
-    return 1.0;//Temperature to impose
+    return 0.68;//Temperature to impose
   }
 
 
@@ -692,6 +690,13 @@ namespace AdditiveSimulation
   //Dirichlet Boundary Conditions
 
   //Instantiation
+  //Setting up boundary_id for Dirichlet BC
+  for(typename Triangulation<dim>::active_cell_iterator cell=triangulation.begin_active();cell!=triangulation.end();cell++){
+	  for(unsigned int f=0;f<GeometryInfo<dim>::faces_per_cell;f++){
+		  if(std::abs(cell->face(f)->center()[1])<1e-12)
+			  cell->face(f)->set_all_boundary_ids(1);
+	  }
+  }
   BoundaryValues<dim> boundary_value_function;
   boundary_value_function.set_time(time);
 
@@ -742,6 +747,13 @@ namespace AdditiveSimulation
 	  assemble_system();
 
 	  //Dirichlet boundary Conditions
+	  //Setting up boundary_id for Dirichlet BC
+	   for(typename Triangulation<dim>::active_cell_iterator cell=triangulation.begin_active();cell!=triangulation.end();cell++){
+	 	  for(unsigned int f=0;f<GeometryInfo<dim>::faces_per_cell;f++){
+	 		  if(std::abs(cell->face(f)->center()[1])<1e-12)
+	 			  cell->face(f)->set_all_boundary_ids(1);
+	 	  }
+	   }
 
 	  BoundaryValues<dim> boundary_values_function;
 	  boundary_values_function.set_time(time);
