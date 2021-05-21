@@ -161,12 +161,10 @@ namespace AdditiveSimulation
 
     const double time = this->get_time();//get the time value
     const double point_within_layer = (time/period - std::floor(time/period));//Return the x coordinate of point on which the laser has to be centered
-    double limit = (1+floor(time*5))*0.1;//Returns the y coordinate of the part surface
+    double limit = (1+floor(time*5))*0.2;//Returns the y coordinate of the part surface
     double dist = point_within_layer;
     const double tol_dist = 5e-2;
-
-
-    return 1000*std::exp(-2.0*std::pow((p[0] - dist/tol_dist),2));
+    return 1000*std::exp(-2.0*std::pow(((p[0] - dist)/tol_dist),2));
   }
 
 
