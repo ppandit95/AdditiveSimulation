@@ -112,6 +112,7 @@ namespace AdditiveSimulation
     const double 		 heat_conductivity;
     const double 		 convection_coeff;
     const double		 Tamb;
+    const double 		 LaserSpeed;
     double		 		 part_height;
     std::map<Point<dim>,double> map_old_solution;
   };
@@ -136,10 +137,11 @@ namespace AdditiveSimulation
   class RightHandSide : public Function<dim>
   {
   public:
-    RightHandSide ()
+    RightHandSide (const double lspeed)
       :
       Function<dim>(),
-      period (0.2) //Time needed to complete one layer
+      period (1.0), //Time needed to complete one layer
+	  LaserSpeed(lspeed)
     {}
     //void set_time(const double new_time);
     virtual double value (const Point<dim> &p,
@@ -147,6 +149,7 @@ namespace AdditiveSimulation
 
   private:
     const double period;
+    const double LaserSpeed;
   };
 
 
@@ -161,7 +164,7 @@ namespace AdditiveSimulation
 
     const double time = this->get_time();//get the time value
     const double point_within_layer = (time/period - std::floor(time/period));//Return the x coordinate of point on which the laser has to be centered
-    double limit = (1+floor(time*5))*0.2;//Returns the y coordinate of the part surface
+    double limit = (1+floor(time*LaserSpeed))*0.2;//Returns the y coordinate of the part surface
     double dist = point_within_layer;
     const double tol_dist = 5e-2;
     return 1000*std::exp(-2.0*std::pow(((p[0] - dist)/tol_dist),2));
@@ -203,9 +206,10 @@ namespace AdditiveSimulation
 	number_layer(5),
 	heat_capacity(0.012),
   	heat_conductivity(1.0),
-	convection_coeff(0.5),
+	convection_coeff(0.00005),
 	Tamb(1.0),
-	part_height(0.0)
+	part_height(0.0),
+	LaserSpeed(1)
   {
 	  fe_collection.push_back(FE_Q<dim>(1));
 	  fe_collection.push_back(FE_Nothing<dim>());
@@ -289,7 +293,7 @@ namespace AdditiveSimulation
 	  system_rhs.add(-(1-theta)*time_step*heat_conductivity,tmp);//rhs = (cM - (1-theta)*tau*k)*K*T^(n-1)
 
 	  //Computation of the forcing terms(=laser heat input)
-	  RightHandSide<dim> rhs_function;
+	  RightHandSide<dim> rhs_function(LaserSpeed);
 
 	  rhs_function.set_time(time);// t=tn
 	  VectorTools::create_right_hand_side(dof_handler,quadrature_collection,rhs_function,tmp); // tmp = F^n
@@ -417,7 +421,7 @@ namespace AdditiveSimulation
 	  unsigned int n = 0;
 	  for (unsigned int v=0;v<GeometryInfo<dim>::vertices_per_cell;++v)
 	  {
-		  double limit = (1+floor(5*time))*layerThickness;
+		  double limit = (1+floor(LaserSpeed*time))*layerThickness;
 		  in_metal = (cell->vertex(n)[dim-1]) < std::max(part_height,limit);
 		  if(in_metal==false)
 			  n++;
@@ -433,7 +437,7 @@ namespace AdditiveSimulation
 	  unsigned int n = 0;
 	  for(unsigned int v=0;v<GeometryInfo<dim>::vertices_per_cell;++v)
 	  {
-		  double limit = (1+floor(5*time))*layerThickness;
+		  double limit = (1+floor(LaserSpeed*time))*layerThickness;
 		  in_void = cell->vertex(n)[dim-1] > std::max(part_height,limit);
 		  if(in_void == false)
 			  n++;
@@ -494,9 +498,9 @@ namespace AdditiveSimulation
 
     data_out.build_patches();
 
-    const std::string filename = "solution-"
-                                 + Utilities::int_to_string(timestep_number, 3) +
-                                 ".vtk";
+    const std::string filename = "solution_LaserSpeed_ " + Utilities::int_to_string(LaserSpeed, 3) + "time_step_"
+                                 + Utilities::int_to_string(timestep_number, 3)
+                                 + ".vtk";
     std::ofstream output(filename.c_str());
     data_out.write_vtk(output);
   }
