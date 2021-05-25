@@ -498,7 +498,7 @@ namespace AdditiveSimulation
 
     data_out.build_patches();
 
-    const std::string filename = "solution_LaserSpeed_ " + Utilities::int_to_string(LaserSpeed, 3) + "time_step_"
+    const std::string filename = "solution-"
                                  + Utilities::int_to_string(timestep_number, 3)
                                  + ".vtk";
     std::ofstream output(filename.c_str());
@@ -535,7 +535,7 @@ namespace AdditiveSimulation
   }
 
   template <int dim>
-  void HeatEquation<dim>::refine_mesh (const unsigned int /*min_grid_level*/,
+  void HeatEquation<dim>::refine_mesh (const unsigned int min_grid_level,
                                        const unsigned int max_grid_level)
   {
 	//Error estimation to set refine flags
@@ -558,7 +558,7 @@ namespace AdditiveSimulation
 	for (typename Triangulation<dim>::active_cell_iterator
 	cell = triangulation.begin_active();
 	cell != triangulation.end(); ++cell)
-	cell->clear_coarsen_flag ();
+			cell->clear_coarsen_flag ();
 
 	//Computation of the new triangulation and DoFHandler
 	triangulation.prepare_coarsening_and_refinement();
@@ -728,7 +728,7 @@ namespace AdditiveSimulation
   output_results();
 
   //Beginning of the time loop
-  while(time <=1.)
+  while(time <=1.2)
   {
 	  time+=time_step;
 	  ++timestep_number;
