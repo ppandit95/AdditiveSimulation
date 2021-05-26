@@ -208,7 +208,7 @@ namespace AdditiveSimulation
   	heat_conductivity(1.0),
 	convection_coeff(0.00005),
 	Tamb(1.0),
-	part_height(0.0),
+	part_height(0.2),
 	LaserSpeed(1)
   {
 	  fe_collection.push_back(FE_Q<dim>(1));
@@ -728,7 +728,7 @@ namespace AdditiveSimulation
   output_results();
 
   //Beginning of the time loop
-  while(time <=1.2)
+  while(time <=5)
   {
 	  time+=time_step;
 	  ++timestep_number;
