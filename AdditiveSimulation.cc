@@ -203,7 +203,7 @@ namespace AdditiveSimulation
     :
     dof_handler(triangulation),
     time (0.0),
-    time_step(0.01),
+    time_step(0.2),
     timestep_number (0),
     theta(1.0),
     edge_length(1.0),
