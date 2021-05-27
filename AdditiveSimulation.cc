@@ -164,10 +164,15 @@ namespace AdditiveSimulation
 
     const double time = this->get_time();//get the time value
     const double point_within_layer = (time/period - std::floor(time/period));//Return the x coordinate of point on which the laser has to be centered
-    double limit = (1+floor(time*LaserSpeed))*0.2;//Returns the y coordinate of the part surface
+    double limit = (1+floor(time*LaserSpeed))*period;//Returns the y coordinate of the part surface
     double dist = point_within_layer;
     const double tol_dist = 5e-2;
-    return 1000*std::exp(-2.0*std::pow(((p[0] - dist)/tol_dist),2));
+    double point_dist = 0.0;
+    for(unsigned int i=0;i<(dim-1);i++){
+    	point_dist += std::pow((p[i] - dist),2);
+    }
+    point_dist = sqrt(point_dist);
+    return 1000*std::exp(-2.0*std::pow((point_dist/tol_dist),2));
   }
 
 
@@ -208,7 +213,7 @@ namespace AdditiveSimulation
   	heat_conductivity(1.0),
 	convection_coeff(0.00005),
 	Tamb(1.0),
-	part_height(0.2),
+	part_height(0.0),
 	LaserSpeed(1)
   {
 	  fe_collection.push_back(FE_Q<dim>(1));
@@ -421,7 +426,7 @@ namespace AdditiveSimulation
 	  unsigned int n = 0;
 	  for (unsigned int v=0;v<GeometryInfo<dim>::vertices_per_cell;++v)
 	  {
-		  double limit = (1+floor(LaserSpeed*time))*layerThickness;
+		  double limit = (1+floor(time))*layerThickness;
 		  in_metal = (cell->vertex(n)[dim-1]) < std::max(part_height,limit);
 		  if(in_metal==false)
 			  n++;
@@ -437,7 +442,7 @@ namespace AdditiveSimulation
 	  unsigned int n = 0;
 	  for(unsigned int v=0;v<GeometryInfo<dim>::vertices_per_cell;++v)
 	  {
-		  double limit = (1+floor(LaserSpeed*time))*layerThickness;
+		  double limit = (1+floor(time))*layerThickness;
 		  in_void = cell->vertex(n)[dim-1] > std::max(part_height,limit);
 		  if(in_void == false)
 			  n++;
@@ -559,6 +564,7 @@ namespace AdditiveSimulation
 	cell = triangulation.begin_active();
 	cell != triangulation.end(); ++cell)
 			cell->clear_coarsen_flag ();
+
 
 	//Computation of the new triangulation and DoFHandler
 	triangulation.prepare_coarsening_and_refinement();
@@ -728,7 +734,7 @@ namespace AdditiveSimulation
   output_results();
 
   //Beginning of the time loop
-  while(time <=5)
+  while(time <=5.)
   {
 	  time+=time_step;
 	  ++timestep_number;
