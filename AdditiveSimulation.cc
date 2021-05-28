@@ -103,6 +103,7 @@ namespace AdditiveSimulation
     double               time_step;
     unsigned int         timestep_number;
 
+<<<<<<< HEAD
     double         theta;
 
     double 		 edge_length;
@@ -116,6 +117,21 @@ namespace AdditiveSimulation
     double		 part_height;
     double 		 period;
     std::vector<unsigned int> holes;
+=======
+    const double         theta;
+
+    const double 		 edge_length;
+    double		         layerThickness;
+    const double 		 number_layer;
+    const double 		 heat_capacity;
+    const double 		 heat_conductivity;
+    const double 		 convection_coeff;
+    const double		 Tamb;
+    const double 		 LaserSpeed;
+    double		         period;
+    double		 		 part_height;
+
+>>>>>>> tempA
     std::map<Point<dim>,double> map_old_solution;
   };
 
@@ -139,19 +155,31 @@ namespace AdditiveSimulation
   class RightHandSide : public Function<dim>
   {
   public:
+<<<<<<< HEAD
     RightHandSide (const double lspeed,const double time_taken)
       :
       Function<dim>(),
 
 	  LaserSpeed(lspeed),
 	  period(period)
+=======
+    RightHandSide (const double lspeed,double time_taken)
+      :
+      Function<dim>(),
+      period (time_taken), //Time needed to complete one layer
+	  LaserSpeed(lspeed)
+>>>>>>> tempA
     {}
     //void set_time(const double new_time);
     virtual double value (const Point<dim> &p,
                           const unsigned int component = 0) const;
 
   private:
+<<<<<<< HEAD
     const double period;//Time taken to complete a layer
+=======
+    double period;
+>>>>>>> tempA
     const double LaserSpeed;
   };
 
@@ -210,7 +238,10 @@ namespace AdditiveSimulation
     timestep_number (0),
     theta(1.0),
     edge_length(1.0),
+<<<<<<< HEAD
 	holes({3,4}),
+=======
+>>>>>>> tempA
 	number_layer(5),
 	heat_capacity(0.012),
   	heat_conductivity(1.0),
@@ -241,6 +272,7 @@ namespace AdditiveSimulation
 		  p2[n] = edge_length;
 	  }
 
+<<<<<<< HEAD
 
 
 	  //Generate a domain
@@ -268,6 +300,27 @@ namespace AdditiveSimulation
 
 
 
+=======
+	  //p2[dim-1] = layerThickness*number_layer;
+
+	  //Generate a parallelopiped with a [p1 p2] diagonal
+	  GridGenerator::hyper_rectangle(triangulation,p1,p2);
+
+	  //Iterating over all the cells to find out max height and width
+	  double max_height=0.0,max_width=0.0;
+	  for(typename Triangulation<dim>::cell_iterator cell=triangulation.begin(); cell!=triangulation.end();cell++){
+		  for(unsigned int v=0;v<GeometryInfo<dim>::vertices_per_cell;++v){
+			  if(cell->vertex(v)[dim-1] > max_height)
+				  max_height = cell->vertex(v)[dim-1];
+			  if(cell->vertex(v)[dim-2] > max_width)
+				  max_width = cell->vertex(v)[dim-2];
+		  }
+	  }
+
+	  //Necessary Corelations for physical additive manufacturing simulation
+	  layerThickness = max_height / number_layer;
+	  period = max_width / LaserSpeed;
+>>>>>>> tempA
   }
 
 
