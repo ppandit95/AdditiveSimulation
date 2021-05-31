@@ -138,11 +138,12 @@ namespace AdditiveSimulation
   class RightHandSide : public Function<dim>
   {
   public:
-    RightHandSide (const double lspeed,double time_taken)
+    RightHandSide (const double lspeed,double time_taken,double lthick)
       :
       Function<dim>(),
       period (time_taken), //Time needed to complete one layer
-	  LaserSpeed(lspeed)
+	  LaserSpeed(lspeed),
+	  layerThickness(lthick)
     {}
     //void set_time(const double new_time);
     virtual double value (const Point<dim> &p,
@@ -151,6 +152,7 @@ namespace AdditiveSimulation
   private:
     double period;
     const double LaserSpeed;
+    double layerThickness;
   };
 
 
@@ -165,7 +167,7 @@ namespace AdditiveSimulation
 
     const double time = this->get_time();//get the time value
     const double point_within_layer = (time/period - std::floor(time/period));//Return the x coordinate of point on which the laser has to be centered
-    double limit = (1+floor(time*LaserSpeed))*period;//Returns the y coordinate of the part surface
+    double limit = (1+floor(time/period))*layerThickness;//Returns the y coordinate of the part surface
     double dist = point_within_layer;
     const double tol_dist = 5e-2;
     double point_dist = 0.0;
@@ -207,7 +209,7 @@ namespace AdditiveSimulation
     time_step(0.01),
     timestep_number (0),
     theta(1.0),
-    edge_length(1.0),
+    edge_length(0.75),
 	number_layer(5),
 	heat_capacity(0.012),
   	heat_conductivity(1.0),
@@ -238,7 +240,7 @@ namespace AdditiveSimulation
 		  p2[n] = edge_length;
 	  }
 
-	  //p2[dim-1] = layerThickness*number_layer;
+
 
 	  //Generate a parallelopiped with a [p1 p2] diagonal
 	  GridGenerator::hyper_rectangle(triangulation,p1,p2);
@@ -314,7 +316,7 @@ namespace AdditiveSimulation
 	  system_rhs.add(-(1-theta)*time_step*heat_conductivity,tmp);//rhs = (cM - (1-theta)*tau*k)*K*T^(n-1)
 
 	  //Computation of the forcing terms(=laser heat input)
-	  RightHandSide<dim> rhs_function(LaserSpeed,period);
+	  RightHandSide<dim> rhs_function(LaserSpeed,period,layerThickness);
 
 	  rhs_function.set_time(time);// t=tn
 	  VectorTools::create_right_hand_side(dof_handler,quadrature_collection,rhs_function,tmp); // tmp = F^n
@@ -442,7 +444,7 @@ namespace AdditiveSimulation
 	  unsigned int n = 0;
 	  for (unsigned int v=0;v<GeometryInfo<dim>::vertices_per_cell;++v)
 	  {
-		  double limit = (1+floor(time))*layerThickness;
+		  double limit = (1+floor(time/period))*layerThickness;
 		  in_metal = (cell->vertex(n)[dim-1]) < std::max(part_height,limit);
 		  if(in_metal==false)
 			  n++;
@@ -458,7 +460,7 @@ namespace AdditiveSimulation
 	  unsigned int n = 0;
 	  for(unsigned int v=0;v<GeometryInfo<dim>::vertices_per_cell;++v)
 	  {
-		  double limit = (1+floor(time))*layerThickness;
+		  double limit = (1+floor(time/period))*layerThickness;
 		  in_void = cell->vertex(n)[dim-1] > std::max(part_height,limit);
 		  if(in_void == false)
 			  n++;
