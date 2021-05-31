@@ -12,7 +12,6 @@
  * the top level of the deal.II distribution.
  *
  * ---------------------------------------------------------------------
-
  *
  * Author: Wolfgang Bangerth, Texas A&M University, 2013
  */
@@ -258,6 +257,7 @@ namespace AdditiveSimulation
 	  //Necessary Corelations for physical additive manufacturing simulation
 	  layerThickness = max_height / number_layer;
 	  period = max_width / LaserSpeed;
+
   }
 
 
@@ -750,7 +750,7 @@ namespace AdditiveSimulation
   output_results();
 
   //Beginning of the time loop
-  while(time <=5.)
+  while(time <=number_layer*period)
   {
 	  time+=time_step;
 	  ++timestep_number;
